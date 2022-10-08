@@ -1,0 +1,224 @@
+﻿<!DOCTYPE html>
+<html lang="en-US">
+
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<meta name="description" content="Orthogonal House">
+
+<script type="text/javascript" src="Common/webgl-utils.js"></script>
+<script type="text/javascript" src="Common/initShaders.js"></script>
+<script type="text/javascript" src="Common/MV.js"></script>
+<script type="text/javascript" src="House.js"></script>
+
+<title>Orthogonal House</title>
+
+<style>
+    button         
+    { 
+        background-color: white; 
+        margin: 5px; 
+        padding: 5px; 
+        font-size: 15px; 
+    }
+
+    button:hover   
+    { 
+        background-color:yellow;
+        transition: 0.3s; 
+    }
+                        
+    .view           
+    { 
+        border-style: inset; 
+        font-size: 17px;
+        width: 530px; 
+    }
+
+    canvas          
+    { 
+        border-style: inset; 
+        margin-top: 5px; 
+        margin-bottom: 5px; 
+    }
+
+    .position       
+    { 
+        border-style: outset; 
+        padding: 5px;
+    }
+    
+    .positionContainer  
+    { 
+        border-style: inset; 
+        width: 530px; 
+    }
+
+    .textContent    
+    { 
+        white-space: pre; 
+    }
+
+    .slider         
+    { 
+        -webkit-appearance: none;
+        appearance: none;
+        width: 75%;
+        height: 15px;
+        border-radius: 15px;   
+        background: #d3d3d3;
+        outline: none;
+        opacity: 0.7; 
+        margin: 6px; 
+    }
+
+    .cameraSlider   
+    { 
+        -webkit-appearance: none;
+        appearance: none;
+        width: 50%;
+        height: 13px;
+        border-radius: 15px;   
+        background: #d3d3d3;
+        outline: none;
+        opacity: 0.7; 
+        margin: 6px; 
+    }
+    
+    .pointSlider    
+    { 
+        -webkit-appearance: none;
+        appearance: none;
+        width: 60%;
+        height: 15px;
+        border-radius: 15px;   
+        background: #d3d3d3;
+        outline: none;
+        opacity: 0.7; 
+        margin: 6px;
+    }
+
+    .pointSlider:disabled
+    {
+        opacity: 0.2;
+    }
+
+    .slider::-webkit-slider-thumb 
+    { 
+        -webkit-appearance: none;
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%; 
+        background: #04AA6D;
+        cursor: pointer;
+        }
+
+    .cameraSlider::-webkit-slider-thumb 
+    { 
+        -webkit-appearance: none;
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%; 
+        background: #04AA6D;
+        cursor: pointer; 
+    }
+
+    .pointSlider::-webkit-slider-thumb  
+    { 
+        -webkit-appearance: none;
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%; 
+        background: #04AA6D;
+        cursor: pointer; 
+    }
+
+    .pos_value
+    {
+        padding-left: 10px;
+    }
+</style>
+
+<table class="view">
+    <tr>
+        <td>
+            <div><b>depth:</b> .05<input class="slider" id="depthSlider" type="range" min=".05" max="3" step="0.1" value="1.5"/>3</div>
+            <div><b>radius:</b> 0.05<input class="slider" id="radiusSlider" type="range" min="0.05" max="2" step="0.1" value="1"/>2</div>
+            <div><b>theta:</b> -180<input class="slider" id="thetaSlider" type="range" min="-180" max="180" step="1" value="0"/>+180</div>
+            <div><b>phi:</b> -180<input class="slider" id="phiSlider" type="range" min="-180" max="180" step="1" value="0"/>+180</div>
+            <div><b>width:</b> 1<input class="slider" id="widthSlider" type="range" min="1" max="20" step="1" value="2"/>20</div>
+            <div><b>height:</b> 1<input class="slider" id="heightSlider" type="range" min="1" max="20" step="1" value="2"/>20</div> 
+        </td>
+    </tr>
+</table>
+
+<script id="vertex-shader" type="x-shader/x-vertex">
+    attribute  vec4 vPosition;
+    attribute  vec4 vColor;
+    varying vec4 fcolor;
+    
+    uniform mat4 modelViewMatrix;
+    uniform mat4 projectionMatrix;
+    
+    void main() 
+    {
+        gl_Position = projectionMatrix*modelViewMatrix*vPosition;
+        fcolor = vColor;
+    } 
+</script>
+
+<script id="fragment-shader" type="x-shader/x-fragment">
+    precision mediump float;
+
+    varying vec4 fcolor;
+    
+    void
+    main()
+    {
+        gl_FragColor = fcolor;
+    }
+</script>
+
+<body>
+    <canvas id="layer" width="525" height="520">
+        Oops ... your browser doesn't support the HTML5 canvas element
+    </canvas>
+    
+    <table class="positionContainer">
+        <tr>
+            <td colspan="2">
+                <div class="cameraSpeed">
+                    <b>&nbsp;&nbsp;Camera Travel Speed: </b> Slow<input class="cameraSlider" id="cameraSlider" type="range" min="0.0001" max="0.005" step="0.00001" value="0.0005"/>Fast
+                    <button id="camera">Toggle Camera Line Traversal</button>
+                    <button id="pointlock">Lock Points</button>&nbsp;
+                </div>
+            </td>
+        </tr>
+        <td class="position">
+            <b>Point 1</b><a class="pos_value">X1: <span id="output_x1"></span></a>
+                          <a class="pos_value">Y1: <span id="output_y1"></span></a>
+                          <a class="pos_value">Z1: <span id="output_z1"></span></a>
+            
+            <div class="slidecontainer">
+                X: -1.0<input class="pointSlider" id="X1" type="range" min="-1.00" max="1.00" step="0.01" value="0"/>+1.0
+                Y: -1.0<input class="pointSlider" id="Y1" type="range" min="-1.00" max="1.00" step="0.01" value="0"/>+1.0
+                Z: -1.0<input class="pointSlider" id="Z1" type="range" min="-1.00" max="1.00" step="0.01" value="0"/>+1.0
+            </div>
+        </td>
+        
+        <td class="position">
+            <b>Point 2</b><a class="pos_value">X2: <span id="output_x2"></span></a>
+                          <a class="pos_value">Y2: <span id="output_y2"></span></a>
+                          <a class="pos_value">Z2: <span id="output_z2"></span></a>
+
+            <div class="slidecontainer">
+                X: -1.0<input class="pointSlider" id="X2" type="range" min="-1.00" max="1.00" step="0.01" value="0"/>+1.0
+                Y: -1.0<input class="pointSlider" id="Y2" type="range" min="-1.00" max="1.00" step="0.01" value="0"/>+1.0
+                Z: -1.0<input class="pointSlider" id="Z2" type="range" min="-1.00" max="1.00" step="0.01" value="0"/>+1.0
+            </div>
+        </td>
+    </table>
+</body>
+</html>
+
