@@ -1,0 +1,1030 @@
+﻿<!DOCTYPE html>
+<html lang="en-US">
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <meta name="description" content="Midpoint drawing">
+	<meta name="keywords" content="canvas, rubber band, selection, save, screen, restore, HTML5">
+	<title>Algorithm Line Drawing</title>
+
+	<style>
+        canvas          
+        { 
+            border-style: ridge; 
+        }
+        
+        canvas:hover
+        {
+            cursor: crosshair;
+        }
+
+        tr              
+        { 
+            border-style: solid;
+            font-size: 18px; 
+        }
+
+        .textContent    
+        { 
+            white-space: pre; 
+        }
+
+        .mouse          
+        { 
+            border-style: outset; 
+            width: 990px; 
+        }
+
+        .draw           
+        { 
+            border-style: outset;
+            width: 990px; 
+            font-size: 18px; 
+        }
+
+        .instructions   
+        { 
+            border-style: outset;
+            width: 990px; 
+            font-size: 18px; 
+        }
+
+        select          
+        { 
+            font-size: 15px;
+            padding: 10px 8px 10px 14px;
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            position: relative;
+        }
+
+        .button         
+        { 
+            background-color: white; 
+            margin: 5px; 
+            padding: 5px; 
+            font-size: 16px; 
+        }
+
+        .button:hover   
+        { 
+            background-color:green;
+            transition: 0.3s; 
+        }
+
+        .coordinates    
+        { 
+            width: 30px;
+            padding: 5px; 
+            text-align: center;
+        }
+
+        .clearbutton         
+        { 
+            background-color: white; 
+            margin: 5px; 
+            padding: 5px; 
+            font-size: 16px; 
+        }
+
+        .clearbutton:hover
+        {
+            background-color:red;
+            transition: 0.3s; 
+        }
+	</style>
+
+	<script>
+		// use this as a shortcut for getting DOM objects
+		const g = function (id) { return document.getElementById(id); }
+		s = {};		// use this singleton instead of global variables
+
+		// This only gets called once and sets everything up
+		onload = function () 
+		{
+            document.body.addEventListener('click', e => { s.mouse_click(e) });
+            document.body.addEventListener('mousedown', e => { s.mouse_down(e) });
+            document.body.addEventListener('mouseup', e => { s.mouse_up(e) });
+            document.body.addEventListener('mousemove', e => { s.mouse_move(e) });
+            
+            g("1").style.display = "block";
+            g("8").style.display = "block";
+            g("15").style.display = "block";
+
+            // REMOVE EVENT LISTENER FOR CLEAR
+
+            // Get the base layer canvas object
+            s.canvas = g("layer");
+            s.ctx = s.canvas.getContext("2d");
+            
+            s.BB = s.canvas.getBoundingClientRect();
+            s.offsetX = s.BB.left;
+            s.offsetY = s.BB.top;
+            s.WIDTH = s.canvas.width;
+            s.HEIGHT = s.canvas.height;
+            s.halfwidth = s.canvas.width/2;
+            s.halfheight = s.canvas.height/2;
+
+            s.p1 = new Curvepoints();
+            s.p2 = new Curvepoints();
+            s.p3 = new Curvepoints();
+            s.p4 = new Curvepoints();
+
+            s.dX = 0;
+            s.dY = 0;
+
+            // bind event handler to clear button
+            g('clear').addEventListener('click', function (e) 
+            {     
+                // preventDefault and stopPropagation used to prevent canvas 
+                // from storing x, y coordinates when clicking clear button
+                e.preventDefault();
+                e.stopPropagation();
+                s.ctx.clearRect(0, 0, s.canvas.width, s.canvas.height);
+            }, false);  
+            
+            g('drawline1').addEventListener('click', function (e) 
+            {   e.preventDefault(); 
+                e.stopPropagation();
+                DDA_line(parseFloat(g("x1").value), parseFloat(g("y1").value), parseFloat(g("x2").value), parseFloat(g("y2").value)); });
+
+            g('drawline2').addEventListener('click', function (e) 
+            {   e.preventDefault(); 
+                e.stopPropagation();
+                MidpointLine(parseInt(g("x1a").value), parseInt(g("y1a").value), parseInt(g("x2a").value), parseInt(g("y2a").value)); });
+
+            g('drawcircle').addEventListener('click', function (e) 
+            {   e.preventDefault(); 
+                e.stopPropagation();
+                MidpointCircle(parseFloat(g("x").value), parseFloat(g("y").value), parseFloat(g("r").value)); });
+
+            g('Ellipse').addEventListener('click', function (e) 
+            {   e.preventDefault(); 
+                e.stopPropagation();
+                MidpointEllipse(parseFloat(g("x11").value), parseFloat(g("y11").value), parseFloat(g("x22").value), parseFloat(g("y22").value)); });
+
+            g('Bezier').addEventListener('click', function (e) 
+            {
+                e.preventDefault(); 
+                e.stopPropagation();
+
+                s.p1.x = parseFloat(g('x1b').value);
+                s.p1.y = parseFloat(g('y1b').value);
+
+                s.p2.x = parseFloat(g('x2b').value);
+                s.p2.y = parseFloat(g('y2b').value);
+
+                s.p3.x = parseFloat(g('x3b').value);
+                s.p3.y = parseFloat(g('y3b').value);
+
+                s.p4.x = parseFloat(g('x4b').value);
+                s.p4.y = parseFloat(g('y4b').value);
+
+                Bezier(parseFloat(g("n").value), s.p1, s.p2, s.p3, s.p4);                 
+            });
+
+            g('Hermite').addEventListener('click', function (e) 
+            {
+                e.preventDefault(); 
+                e.stopPropagation();
+
+                s.p1.x = parseFloat(g('x1c').value);
+                s.p1.y = parseFloat(g('y1c').value);
+
+                s.p2.x = parseFloat(g('x2c').value);
+                s.p2.y = parseFloat(g('y2c').value);
+
+                s.p3.x = parseFloat(g('x3c').value);
+                s.p3.y = parseFloat(g('y3c').value);
+
+                s.p4.x = parseFloat(g('x4c').value);
+                s.p4.y = parseFloat(g('y4c').value);
+
+                Hermite(parseFloat(g("n").value), s.p1, s.p2, s.p3, s.p4);                 
+            });
+
+            g('Spline').addEventListener('click', function (e) 
+            {
+                e.preventDefault(); 
+                e.stopPropagation();
+                
+                s.p1.x = parseFloat(g('x1d').value);
+                s.p1.y = parseFloat(g('y1d').value);
+
+                s.p2.x = parseFloat(g('x2d').value);
+                s.p2.y = parseFloat(g('y2d').value);
+
+                s.p3.x = parseFloat(g('x3d').value);
+                s.p3.y = parseFloat(g('y3d').value);
+
+                s.p4.x = parseFloat(g('x4d').value);
+                s.p4.y = parseFloat(g('y4d').value);
+
+                Spline(parseFloat(g("n").value), s.p1, s.p2, s.p3, s.p4);                 
+            });
+        }
+
+        function DDA_line(x1, y1, x2, y2)
+        {
+            let steps;
+
+            let dx = x2 - x1;
+            let dy = y2 - y1;
+
+            // let m = dy / dx;
+
+            let absdx = Math.abs(dx);
+            let absdy = Math.abs(dy);
+
+            // decide the size of steps based on bigger difference
+            (absdx > absdy) ? steps = absdx : steps = absdy;
+
+            // calculate the increment in each axis
+            let xInc = dx /steps;
+            let yInc = dy /steps;
+
+            // pixel for each step:
+            let x = x1; 
+            let y = y1;
+
+            for (i = 1; i <= steps; i++)
+            {
+                putPixel(x, y);
+                x = x + xInc;
+                y = y + yInc;
+            }
+        }
+
+        function MidpointLine(x1, y1, x2, y2)
+        {
+            let dx = Math.abs(x2 - x1);
+            let dy = Math.abs(y2 - y1);
+             
+            let sx = x1 < x2 ? 1 : -1;
+            let sy = y1 < y2 ? 1 : -1;
+
+            let err = (dx > dy ? dx : -dy) / 2;
+
+            while(true) 
+            {
+                putPixel(x1, y1);
+
+                if (x1 === x2 && y1 === y2) break;
+
+                const e2 = err;
+
+                if(e2 > -dx) 
+                { 
+                    err -= dy; 
+                    x1 += sx; 
+                }
+
+                if(e2 < dy) 
+                { 
+                    err += dx; 
+                    y1 += sy; 
+                }
+            }
+        }
+        
+        function MidpointCircle(x1, y1, r)
+        {
+            let x = 0;
+            let y = r;
+
+            let d = 1 - r;
+
+            // center point
+            // putPixel(x1, y1);
+
+            putPixel(x1 + r, y1);
+            putPixel(x1, y1 + r);
+            putPixel(x1 - r, y1);
+            putPixel(x1, y1 - r);
+
+            while(y > x)
+            {
+                if (d < 0) 
+                {
+                    d += 2 * x + 3;
+                }
+                else 
+                {
+                    d += 2 * (x - y) + 5;
+                    y--;
+                }
+                x++;
+                putPixel(x + x1, y + y1);
+                putPixel(y + x1, x + y1);
+                putPixel(-x + x1, y + y1);
+                putPixel(-y + x1, x + y1);
+                putPixel(-x + x1, -y + y1);
+                putPixel(-y + x1, -x + y1);
+                putPixel(x + x1, -y + y1);
+                putPixel(y + x1, -x + y1);
+            }
+        }
+
+        function MidpointEllipse(xc, yc, rx, ry)
+        {
+            putPixel(xc, yc);
+
+            let dx, dy, d1, x, y;
+            x = 0;
+            y = ry;
+
+            // Initial decision parameter of region 1
+            d1 = (ry * ry) - (rx * rx * ry) + (0.25 * rx * rx);
+            dx = 2 * ry * ry * x;
+            dy = 2 * rx * rx * y;
+
+            // For region 1
+            while (dx < dy)
+            {
+                putPixel(x + xc, y + yc);
+                putPixel(-x + xc, y + yc);
+                putPixel(x + xc, -y + yc);
+                putPixel(-x + xc, -y + yc);
+
+                // Checking and updating value of
+                // decision parameter based on algorithm
+                if (d1 < 0)
+                {
+                    x++;
+                    dx += (2 * ry * ry);
+                    d1 += dx + (ry * ry);
+                }
+                else
+                {
+                    x++;
+                    y--;
+                    dx += (2 * ry * ry);
+                    dy -= (2 * rx * rx);
+                    d1 += dx - dy + (ry * ry);
+                }
+            }
+
+            // Decision parameter of region 2
+            d2 = ((ry * ry) * ((x + 0.5) * (x + 0.5))) +
+                ((rx * rx) * ((y - 1) * (y - 1))) -
+                (rx * rx * ry * ry);
+
+            // Plotting points of region 2
+            while (y >= 0)
+            {
+                putPixel(x + xc, y + yc);
+                putPixel(-x + xc, y + yc);
+                putPixel(x + xc, -y + yc);
+                putPixel(-x + xc, -y + yc);
+
+                // Checking and updating parameter
+                // value based on algorithm
+                if (d2 > 0)
+                {
+                    y--;
+                    dy -= (2 * rx * rx);
+                    d2 += (rx * rx) - dy;
+                }
+                else
+                {
+                    y--;
+                    x++;
+                    dx += (2 * ry * ry);
+                    dy -= (2 * rx * rx);
+                    d2 += dx - dy + (rx * rx);
+                }
+            }
+        }
+
+        function Curvepoints()
+        {
+            this.x = null;
+            this.y = null;
+        }
+
+        function Bezier(n, p1, p2, p3, p4)
+        {
+            let i, t;
+            let x, y, z;
+            let delta = 1.0/n;
+
+            // putPixel(s.p2.x, s.p2.y);
+            // putPixel(s.p3.x, s.p3.y);
+
+            x = p1.x;
+            y = p1.y;
+            t = 0.0;
+
+            for(i = 0; i < n; i++)
+            {
+                t += delta;
+                let t2 = t * t;
+                let t3 = t2 * t;
+
+                let q1 = (1 - t);
+                let q2 = q1 * q1;
+                let q3 = q2 * q1;
+
+                x = q3 * p1.x + (3 * t * q2) * p2.x + (3 * t2 * q1) * p3.x + t3 * p4.x;
+                y = q3 * p1.y + (3 * t * q2) * p2.y + (3 * t2 * q1) * p3.y + t3 * p4.y;
+
+                putPixel(x, y);
+            }
+        }
+
+        function Hermite(n, p1, p4, r1, r4)
+        {
+            let i, t;
+            let x, y, z;
+            let delta = 1.0/n;
+
+            x = p1.x;
+            y = p1.y;
+            t = 0.0;
+
+            for(i = 0; i < n; i++)
+            {
+                t += delta;
+                let t2 = t * t;
+                let t3 = t2 * t;
+
+                x = ((2 * t3) - (3 * t2) + 1) * p1.x + ((-2 * t3) + (3 * t2)) * p4.x + (t3 - (2 * t2) + t) * r1.x + (t3 - t2) * r4.x;
+                y = ((2 * t3) - (3 * t2) + 1) * p1.y + ((-2 * t3) + (3 * t2)) * p4.y + (t3 - (2 * t2) + t) * r1.y + (t3 - t2) * r4.y;
+
+                putPixel(x, y);
+            }
+        }
+
+        function Spline(n, p1, p2, p3, p4)
+        {
+            let i, t;
+            let x, y, z;
+            let delta = 1.0/n;
+
+            x = p1.x;
+            y = p1.y;
+            t = 0.0;
+
+            for(i = 0; i < n; i++)
+            {
+                t += delta;
+                let t2 = t * t;
+                let t3 = t2 * t;
+
+                x = (((1 - t3) / 6) * p1.x) + (((3 * t3 - 6 * t2 + 4) / 6) * p2.x) + (((-3 * t3 + 3 * t2 + 3 * t + 1) / 6) * p3.x) + ((t3 / 6) * p4.x);
+                y = (((1 - t3) / 6) * p1.y) + (((3 * t3 - 6 * t2 + 4) / 6) * p3.y) + (((-3 * t3 + 3 * t2 + 3 * t + 1) / 6) * p3.y) + ((t3 / 6) * p4.y);
+
+                putPixel(x, y);
+            }
+        }
+
+        function primitiveLine(x1, y1, x2, y2)
+        {
+            s.ctx.beginPath();
+            s.ctx.moveTo(x1, y1);
+			s.ctx.lineTo(x2, y2);
+            s.ctx.stroke();
+        }
+        
+        function primitiveCircle(x, y, r)
+        {
+            s.ctx.beginPath();
+            s.ctx.arc(x, y, r, 0, 2 * Math.PI);
+            s.ctx.stroke()
+        }
+
+        function primitiveEllipse(x1, y1, radiusX, radiusY)
+        {
+            var deg = 0;
+            var rotation = deg * (Math.PI / 180.0);
+
+            putPixel(x1, y1);
+            s.ctx.beginPath();
+            s.ctx.ellipse(x1, y1, radiusX, radiusY, rotation, 0, 2 * Math.PI);
+            s.ctx.stroke();
+        }
+
+        function primitiveBezier(p1, p2, p3, p4)
+        {
+            s.ctx.beginPath();
+            s.ctx.moveTo(s.p1.x + 50, s.p1.y);
+            s.ctx.bezierCurveTo(s.p2.x + 50, s.p2.y + 50, s.p3.x + 50, s.p3.y + 50, s.p4.x + 50, s.p4.y + 50);
+            s.ctx.stroke();
+        }
+
+        function primitiveHermite(steps, p1, p2, p3, p4)
+        {
+            // let s = t / steps;
+
+            // s.ctx.moveTo(s.p1.x, s.p1.y);
+            // for(let t = 0; t < steps; t++)
+            // {
+            //     let h1 = (2*(Math.pow(s, 3))) - (3*(Math.pow(s, 2))) + 1;
+            //     let h2 = (-2*(Math.pow(s, 3))) + (3*Math.pow(s, 2));
+            //     let h3 = (Math.pow(s, 3)) - (2*(Math.pow(s, 2))) + s;
+            //     let h4 = (Math.pow(s, 3)) - (Math.pow(s, 2));
+
+            //     let p = []
+            // }
+            
+        }
+
+        function primitiveB_spine(p1, p2, p3, p4)
+        {
+            // nothing yet
+        }
+
+        function putPixel(x, y)
+        {
+            s.ctx.fillStyle = 'black';
+            s.ctx.fillRect(x, y, 1, 1);    
+        }
+
+        function double_coords(x1, y1, x2, y2)
+        {
+            s.dX = x2 - x1;
+            s.dY = y2 - y1;
+
+            g("val2").setAttribute('style', 'white-space: pre;');
+            s.coords = "(" + x1 + ", " + y1 + ")" + "\r\n";
+            g("val2").textContent = s.coords;
+
+            g("val3").setAttribute('style', 'white-space: pre;');
+            s.coords = "(" + x2 + ", " + y2 + ")" + "\r\n";
+            g("val3").textContent = s.coords;
+
+            s.coords = "(" + s.dX + ", " + s.dY + ")";
+            g("val4").textContent = s.coords;
+        }
+
+        function quad_coords(x1, y1, x4, y4)
+        {
+            s.dX = x4 - x1;
+            s.dY = y4 - y1;
+
+            g("val2").setAttribute('style', 'white-space: pre;');
+            s.coords = "(" + x1 + ", " + y1 + ")" + "\r\n";
+            g("val2").textContent = s.coords;
+
+            g("val3").setAttribute('style', 'white-space: pre;');
+            s.coords = "(" + x4 + ", " + y4 + ")" + "\r\n";
+            g("val3").textContent = s.coords;
+
+            s.coords = "(" + s.dX + ", " + s.dY + ")";
+            g("val4").textContent = s.coords;
+        }
+
+        function quad_coords2(x1, y1, x2, y2)
+        {
+            s.dX = x2 - x1;
+            s.dY = y2 - y1;
+
+            g("val2").setAttribute('style', 'white-space: pre;');
+            s.coords = "(" + x1 + ", " + y1 + ")" + "\r\n";
+            g("val2").textContent = s.coords;
+
+            g("val3").setAttribute('style', 'white-space: pre;');
+            s.coords = "(" + x2 + ", " + y2 + ")" + "\r\n";
+            g("val3").textContent = s.coords;
+
+            s.coords = "(" + s.dX + ", " + s.dY + ")";
+            g("val4").textContent = s.coords;
+        }
+
+        function clear() { s.p1.x = s.p1.y = s.p2.x = s.p2.y = s.p3.x = s.p3.y = s.p4.x = s.p4.y = null; }
+
+        // callback for mouse click events
+        s.mouse_click = function (e) 
+		{
+            s.xClick = parseFloat(e.clientX - s.offsetX);
+            s.yClick = parseFloat(e.clientY - s.offsetY);
+
+            if(!(x1))
+            {
+                x1 = Math.floor(s.xClick);
+                y1 = Math.floor(s.yClick);
+
+                if(!(s.p1.x))
+                {
+                    s.p1.x = Math.floor(s.xClick);
+                    s.p1.y = Math.floor(s.yClick);
+                }
+                else if(!(s.p3.x))
+                {
+                    s.p3.x = Math.floor(s.xClick);
+                    s.p3.y = Math.floor(s.yClick);
+                }
+            }
+            else
+            {
+                x2 = Math.floor(s.xClick);
+                y2 = Math.floor(s.yClick);
+
+                if(!(s.p2.x))
+                {
+                    s.p2.x = Math.floor(s.xClick);
+                    s.p2.y = Math.floor(s.yClick);
+                }
+
+                switch(g("shape").value)
+                {
+                    case "1":
+                        DDA_line(x1, y1, x2, y2);
+                        if(g("primitive").value == "2")
+                        {
+                            primitiveLine(x1 + 30, y1 + 30, x2 + 30, y2 + 30);
+                        }
+                        double_coords(x1, y1, x2, y2);
+                    break;
+
+                    case "2":
+                        MidpointLine(x1, y1, x2, y2);
+                        if(g("primitive").value == "2")
+                        {
+                            primitiveLine(x1 + 30, y1 + 30, x2 + 30, y2 + 30);
+                        }
+                        double_coords(x1, y1, x2, y2);
+                    break;
+
+                    case "3":
+                        const r = Math.abs(x2 - x1);
+                        MidpointCircle(x1, y1, r);
+                        if(g("primitive").value == "2")
+                        {
+                            primitiveCircle(x1 + (r * 2) + 10, y1, r);
+                        }
+                        double_coords(x1, y1, x2, y2);
+                    break;
+
+                    case "4":
+                        let rx = Math.abs((x2 - x1));
+                        let ry = Math.abs((y2 - y1));
+                        MidpointEllipse(x1, y1, rx, ry);
+                        if(g("primitive").value == "2")
+                        {
+                            primitiveEllipse(x1, y1 + 100, rx, ry);
+                        }
+                        double_coords(x1, y1, x2, y2);
+                    break;
+
+                    case "5":
+                        if(s.p1.x && s.p2.x && s.p3.x)
+                        {
+                            s.p4.x = Math.floor(s.xClick);
+                            s.p4.y = Math.floor(s.yClick);
+
+                            Bezier(parseFloat(g('n').value), s.p1, s.p2, s.p3, s.p4);
+
+                            if(g("primitive").value == "2")
+                            {
+                                primitiveBezier(parseFloat(g('n').value), s.p1, s.p2, s.p3, s.p4);
+                            }
+                            quad_coords(s.p1.x, s.p1.y, s.p4.x, s.p4.y);
+                            clear();
+                        }
+                    break;
+
+                    case "6":
+                        if(s.p1.x && s.p2.x && s.p3.x)
+                        {
+                            s.p4.x = Math.floor(s.xClick);
+                            s.p4.y = Math.floor(s.yClick);
+
+                            Hermite(parseFloat(g('n').value), s.p1, s.p2, s.p3, s.p4);
+
+                            if(g("primitive").value == "2")
+                            {
+                                primitiveHermite(parseFloat(g('n').value), s.p1, s.p2, s.p3, s.p4);
+                            }
+                            quad_coords2(s.p1.x, s.p1.y, s.p2.x, s.p2.y);
+                            clear();
+                        }
+                    break;
+
+                    case "7":
+                        if(s.p1.x && s.p2.x && s.p3.x)
+                        {
+                            s.p4.x = Math.floor(s.xClick);
+                            s.p4.y = Math.floor(s.yClick);
+
+                            Spline(parseFloat(g('n').value), s.p1, s.p2, s.p3, s.p4);
+
+                            if(g("primitive").value == "2")
+                            {
+                                // primitiveSpline(parseFloat(g('n').value), s.p1, s.p2, s.p3, s.p4);
+                            }
+                            quad_coords(s.p1.x, s.p1.y, s.p4.x, s.p4.y);
+                            clear();
+                        }
+                    break;
+
+                    default:
+                        console.log("Somethign went wrong");
+                    break;
+                }
+
+                x1 = null;
+                y1 = null;   
+
+                if(s.p1.x && s.p2.x && s.p3.x && !(s.p4.x))
+                {
+                    clear();
+                }
+            }
+        }
+
+        // callback for mouse down events
+        s.mouse_down = function (e) 
+		{
+            s.xDown = parseInt(e.clientX - s.offsetX);
+            s.yDown = parseInt(e.clientY - s.offsetY);
+            s.is_down = true;
+        }
+
+        // callback for mouse move events
+        s.mouse_move = function (e) 
+		{
+            s.x = parseInt(e.clientX - s.offsetX);
+            s.y = parseInt(e.clientY - s.offsetY);
+
+            g("val1").setAttribute('style', 'white-space: pre;');
+            s.coords = "X: " + s.x + " Y: " + s.y + "\r\n";
+            g("val1").textContent = s.coords;
+        }
+
+        // callback for mouse up events
+        s.mouse_up = function (e) 
+		{
+            s.xUp = parseInt(e.clientX - s.offsetX);
+            s.yUp = parseInt(e.clientY - s.offsetY);
+            s.is_down = false;
+        }
+
+        function display()
+        {
+            var selectedValue = g("shape").value;
+
+            // const test = q("div");
+            // console.log(test.item(0));
+
+            g("1").style.display = "none";
+            g("2").style.display = "none";
+            g("3").style.display = "none";
+            g("4").style.display = "none";
+            g("5").style.display = "none";
+            g("6").style.display = "none";
+            g("7").style.display = "none"; 
+
+            g("8").style.display = "none";
+            g("9").style.display = "none";
+            g("10").style.display = "none";
+            g("11").style.display = "none";
+            g("12").style.display = "none";
+            g("13").style.display = "none";
+            g("14").style.display = "none"; 
+
+            g("15").style.display = "none";
+            g("16").style.display = "none";
+            g("17").style.display = "none";
+            g("18").style.display = "none";
+            g("19").style.display = "none";
+            g("20").style.display = "none";
+            g("21").style.display = "none";
+
+            if (selectedValue == "1")
+            {
+                g("1").style.display = "block";
+                g("8").style.display = "block";
+                g("15").style.display = "block";
+            }
+            if (selectedValue == "2")
+            {
+                g("2").style.display = "block";
+                g("9").style.display = "block";
+                g("16").style.display = "block";
+            }
+            if (selectedValue == "3")
+            {
+                g("3").style.display = "block";
+                g("10").style.display = "block";
+                g("17").style.display = "block";
+            }
+            if (selectedValue == "4")
+            {
+                g("4").style.display = "block";
+                g("11").style.display = "block";
+                g("18").style.display = "block";
+            }
+            if (selectedValue == "5")
+            {
+                g("5").style.display = "block";
+                g("12").style.display = "block";
+                g("19").style.display = "block";
+            }
+            if (selectedValue == "6")
+            {
+                g("6").style.display = "block";
+                g("13").style.display = "block";
+                g("20").style.display = "block";
+            }
+            if (selectedValue == "7")
+            {
+                g("7").style.display = "block";
+                g("14").style.display = "block";
+                g("21").style.display = "block";
+            }
+        }
+	</script>
+
+    <h1 id="15" style="display: none;">Digital Differential Analyzer (DDA)</h1>
+    <h1 id="16" style="display: none;">Midpoint Line</h1>
+    <h1 id="17" style="display: none;">Midpoint Circle</h1>
+    <h1 id="18" style="display: none;">Midpoint Ellipse</h1>
+    <h1 id="19" style="display: none;">Bezier Curve</h1>
+    <h1 id="20" style="display: none;">Hermite Curve</h1>
+    <h1 id="21" style="display: none;">B-Spine Curve</h1>
+</head>
+
+<body>
+	<table>
+        <tr>
+            <td>
+                <canvas id="layer" width="980px" height="580">
+                    Oops ... your browser doesn't support the HTML5 canvas element
+                </canvas>
+            </td>
+        </tr>
+	</table>
+
+    <table class="mouse">
+        <tr>
+            <td>
+                <b>Mouse Coordinates:&nbsp;</b><span id="val1"></span>
+                <b>Starting Point:&nbsp;</b><span id="val2"></span>
+                <b>Ending Point:&nbsp;</b><span id="val3"></span>
+                <b>Mouse difference from starting:&nbsp;</b><span id="val4"></span>
+            </td>
+        </tr>
+    </table>
+
+    <table class="draw">
+        <tr>
+            <td>
+                Drawing Algorithm: 
+                <select id="shape" onchange="display();">
+                    <option value="1">DDA Line</option>
+                    <option value="2">Midpoint Line</option>
+                    <option value="3">Midpoint Circle</option>
+                    <option value="4">Midpoint Ellipse</option>
+                    <option value="5">Bezier Curve</option>
+                    <option value="6">Hermite Curve</option>
+                    <option value="7">B-Spine Curve</option>
+                </select>&nbsp;&nbsp;&nbsp;
+
+                Draw with Primitive Comparison? 
+                <select id="primitive">
+                    <option value="1">No</option>
+                    <option value="2">Yes</option>
+                </select>&nbsp;&nbsp;&nbsp;
+
+                <button type="button" id="clear" class="clearbutton">Clear</button>
+            </td>
+        <tr>
+            <td>
+                <div id="8" style="display: none;">
+                    <label>DDA Line Coordinates: &nbsp;</label>
+                    X1&nbsp;<input id="x1" type="text" value="100" class="coordinates"/>&nbsp;&nbsp;
+                    Y1&nbsp;<input id="y1" type="text" value="100" class="coordinates"/>&nbsp;&nbsp;
+                    X2&nbsp;<input id="x2" type="text" value="300" class="coordinates"/>&nbsp;&nbsp;
+                    Y2&nbsp;<input id="y2" type="text" value="300" class="coordinates"/>
+                    <button type="button" id="drawline1" class="button">Draw</button>
+                </div>
+                <div id="9" style="display: none;">
+                    <label>Midpoint Line Coordinates: &nbsp;</label>
+                    X1&nbsp;<input id="x1a" type="text" value="210" class="coordinates"/>&nbsp;&nbsp;
+                    Y1&nbsp;<input id="y1a" type="text" value="310" class="coordinates"/>&nbsp;&nbsp;
+                    X2&nbsp;<input id="x2a" type="text" value="320" class="coordinates"/>&nbsp;&nbsp;
+                    Y2&nbsp;<input id="y2a" type="text" value="100" class="coordinates"/>
+                    <button type="button" id="drawline2" class="button">Draw</button>
+                </div>
+                <div id="10" style="display: none;">
+                    <label>Midpoint Circle Coordinates: &nbsp;</label>
+                    X&nbsp;<input id="x" type="text" name="x" value="500" class="coordinates"/>&nbsp;&nbsp;
+                    Y&nbsp;<input id="y" type="text" name="y" value="200" class="coordinates"/>&nbsp;&nbsp;
+                    R&nbsp;<input id="r" type="text" name="r" value="50" class="coordinates"/>&nbsp;&nbsp;
+                    <button type="button" id="drawcircle" class="button">Draw</button>
+                </div>
+                <div id="11" style="display: none;">
+                    <label>Midpoint Ellipse Coordinates: &nbsp;</label>
+                    X1&nbsp;<input id="x11" type="text" name="x" value="200" class="coordinates"/>&nbsp;&nbsp;
+                    Y1&nbsp;<input id="y11" type="text" name="y" value="200" class="coordinates"/>&nbsp;&nbsp;
+                    X2&nbsp;<input id="x22" type="text" name="x" value="120" class="coordinates"/>&nbsp;&nbsp;
+                    Y2&nbsp;<input id="y22" type="text" name="y" value="70" class="coordinates"/>&nbsp;&nbsp;
+                    <button type="button" id="Ellipse" class="button">Draw</button>
+                </div>
+                <div id="12" style="display: none;">
+                    <label>Bezier Coordinates: &nbsp;</label>
+                    X1&nbsp;<input id="x1b" type="text" value="0" class="coordinates"/>&nbsp;&nbsp;
+                    Y1&nbsp;<input id="y1b" type="text" value="0" class="coordinates"/>&nbsp;&nbsp;
+                    X2&nbsp;<input id="x2b" type="text" value="100" class="coordinates"/>&nbsp;&nbsp;
+                    Y2&nbsp;<input id="y2b" type="text" value="300" class="coordinates"/>&nbsp;&nbsp;
+                    X3&nbsp;<input id="x3b" type="text" value="400" class="coordinates"/>&nbsp;&nbsp;
+                    Y3&nbsp;<input id="y3b" type="text" value="120" class="coordinates"/>&nbsp;&nbsp;
+                    X4&nbsp;<input id="x4b" type="text" value="500" class="coordinates"/>&nbsp;&nbsp;
+                    Y4&nbsp;<input id="y4b" type="text" value="400" class="coordinates"/>&nbsp;&nbsp;
+                    N&nbsp;<input id="n" type="text" value="1000" class="coordinates"/>
+                    <button type="button" id="Bezier" class="button">Draw</button>
+                </div>
+                <div id="13" style="display: none;">
+                    <label>Hermite Coordinates: &nbsp;</label>
+                    X1&nbsp;<input id="x1c" type="text" value="50" class="coordinates"/>&nbsp;&nbsp;
+                    Y1&nbsp;<input id="y1c" type="text" value="250" class="coordinates"/>&nbsp;&nbsp;
+                    X2&nbsp;<input id="x2c" type="text" value="500" class="coordinates"/>&nbsp;&nbsp;
+                    Y2&nbsp;<input id="y2c" type="text" value="250" class="coordinates"/>&nbsp;&nbsp;
+                    X3&nbsp;<input id="x3c" type="text" value="150" class="coordinates"/>&nbsp;&nbsp;
+                    Y3&nbsp;<input id="y3c" type="text" value="120" class="coordinates"/>&nbsp;&nbsp;
+                    X4&nbsp;<input id="x4c" type="text" value="300" class="coordinates"/>&nbsp;&nbsp;
+                    Y4&nbsp;<input id="y4c" type="text" value="400" class="coordinates"/>&nbsp;&nbsp;
+                    N&nbsp;<input id="n" type="text" value="1000" class="coordinates"/>
+                    <button type="button" id="Hermite" class="button">Draw</button>
+                </div>
+                <div id="14" style="display: none;">
+                    <label>Spline Coordinates: &nbsp;</label>
+                    X1&nbsp;<input id="x1d" type="text" value="150" class="coordinates"/>&nbsp;&nbsp;
+                    Y1&nbsp;<input id="y1d" type="text" value="250" class="coordinates"/>&nbsp;&nbsp;
+                    X2&nbsp;<input id="x2d" type="text" value="100" class="coordinates"/>&nbsp;&nbsp;
+                    Y2&nbsp;<input id="y2d" type="text" value="500" class="coordinates"/>&nbsp;&nbsp;
+                    X3&nbsp;<input id="x3d" type="text" value="100" class="coordinates"/>&nbsp;&nbsp;
+                    Y3&nbsp;<input id="y3d" type="text" value="300" class="coordinates"/>&nbsp;&nbsp;
+                    X4&nbsp;<input id="x4d" type="text" value="720" class="coordinates"/>&nbsp;&nbsp;
+                    Y4&nbsp;<input id="y4d" type="text" value="130" class="coordinates"/>&nbsp;&nbsp;
+                    N&nbsp;<input id="n" type="text" value="1000" class="coordinates"/>
+                    <button type="button" id="Spline" class="button">Draw</button>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <table class="instructions">
+        <tr>
+            <td>
+                <div id="1" style="display: none;">
+                    Drawing Controls: Click once to set the starting point (x1, y1). 
+                    Click again to set the ending point, (x2, y2). 
+                    Or input the coordinates into the text fields.
+                    When both points are set, a line between them will be drawn automatically.</div>
+
+                <div id="2" style="display: none;">
+                    Drawing Controls: Click once to set the starting point (x1, y1). 
+                    Click again to set the ending point, (x2, y2). 
+                    Or input the coordinates into the text fields.
+                    When both points are set, a line between them will be drawn automatically.</div>
+
+                <div id="3" style="display: none;">
+                    Drawing Controls: Click once to set the center of the circle (x, y).
+                    Click again around that center to set the radius of the circle.
+                    Or input the coordinates into the text fields.
+                    WHen both points are set, a circle will be drawn around the center point.</div>
+
+                <div id="4" style="display: none;">
+                    Drawing Controls: Click once to set the center of the ellipse (x, y).
+                    Click again around that center to set the x or y radius of the circle.
+                    Or input the coordinates into the text fields.
+                    When both points are set, an ellipse will be drawn around the center point,
+                    with the elongated side determined on whether the final click was on the x or y axis.</div>
+
+                <div id="5" style="display: none;">
+                    Drawing Controls: (Starting point -> curve 1 -> curve 2 -> end point)
+                    Click once to set the starting point p1(x1, y1).
+                    Click again to set the first curve point p2(x2, y2).
+                    Click a third time to set the second curve point p3(x3, y3).
+                    Click a fourth time to set the final point of the Bezier Curve p4(x4, y4).
+                    Or input the coordinates into the text fields.
+                    When all points are set, a Bezier Curve will be drawn.
+                    You can also input the number of points along the line.</div>
+                    
+                <div id="6" style="display: none;">
+                    Drawing Controls: (Starting point -> end point -> curve 1 -> curve 2)
+                    Click once to set the starting point p1(x1, x2).
+                    Click again to set the end point of the curve p4(x2, y2).
+                    Click a third time to set the first curve point r1(x3, y3).
+                    Click a fourth time to set the second curve point r4(x4, y4).
+                    Or input the coordinates into the text fields.
+                    When all points a set, a Hermite curve will be drawn. 
+                    You can also input the number of points along the line.</div>
+
+                <div id="7" style="display: none;">
+                    Drawing Controls: (Starting point -> curve 1 -> curve 2 -> end point)
+                    Click once to set the starting point p1(x1, y1).
+                    Click again to set the first curve point p2(x2, y2).
+                    Click a third time to set the second curve point p3(x3, y3).
+                    Click a fourth time to set the final point of the Spline Curve p4(x4, y4).
+                    Or input the coordinates into the text fields.
+                    When all points are set, a Spline Curve will be drawn.
+                    You can also input the number of points along the line.</div>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
