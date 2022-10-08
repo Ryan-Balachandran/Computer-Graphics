@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="">
+	
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8" >
+	<title>2D Sierpinski Gasket</title>
+
+	<script type="text/javascript" src="Common/webgl-utils.js"></script>
+	<script type="text/javascript" src="Common/initShaders.js"></script>
+	<script type="text/javascript" src="Common/MV.js"></script>
+	<script type="text/javascript" src="gasket1.js"></script>
+</head>
+
+<body>
+	<h1>Interactive Sierpinski Triangle</h1>
+	<hr>
+
+    <div id="div0">
+        <canvas id="sierpinskiCanvas" width="700" height="700">
+            Your browser sucks.
+        </canvas><br><br>
+
+        <button id="randColorButton">Different Random Color</button>&nbsp;
+
+        <label for="colorPicker">
+            Color Picker:&nbsp;<input type="color" id="colorPicker" name="colorPicker" value="#ff0000">
+        </label>&nbsp;
+
+        <label for="redRange">
+            Red:&nbsp;<input id="redRange" type="range" min="0" max="1" step="0.01" value="0.5">
+        </label>&nbsp;
+
+        <label for="greenRange">
+            Green:&nbsp;<input id="greenRange" type="range" min="0" max="1" step="0.01" value="0.5">
+        </label>&nbsp;
+
+        <label for="blueRange">
+            Blue:&nbsp;<input id="blueRange" type="range" min="0" max="1" step="0.01" value="0.5">
+        </label>&nbsp;<br><br>
+
+        <label for="PSRange">
+            Point Size:&nbsp;<input id="PSRange" type="range" min="1" max="10" step="0.1" value="1.0">
+        </label>&nbsp;
+
+        <label for="NOPRange">
+            Number of Points:&nbsp;<input id="NOPRange" type="range" min="0" max="150000" step="500" value="10000">
+        </label>&nbsp;<br><br>
+        
+        <button id="moveup">Move up</button>&nbsp;
+        <button id="movedown">Move down</button>&nbsp;
+        <button id="moveleft">Move left</button>&nbsp;
+        <button id="moveright">Move right</button>&nbsp;
+        <button id="shrink">Shrink</button>&nbsp;
+        <button id="grow">Grow</button>&nbsp;
+        <button id="reset">Reset</button>&nbsp;
+        <button id="increase">Increase Scale</button>&nbsp;
+        <button id="decrease">Decrease Scale</button>&nbsp;
+    </div>
+</body>
+</html>
+
