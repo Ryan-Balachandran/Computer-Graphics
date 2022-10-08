@@ -1,0 +1,725 @@
+﻿<!DOCTYPE html>
+
+<html lang="en-US">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+        <meta name="description" content="Canvas with rubber band selection box.">
+        <meta name="keywords" content="canvas, rubber band, selection, save, screen, restore, HTML5">
+        <title>Rubberbanding and Transformation</title>
+
+        <style>
+            table, tr, td { border-style: outset; font-size: 17px;}
+            td            { padding: 5px; }
+            .dropdown     { padding: 5px; }
+            select        { font-size: 18px; }
+            .draw         { padding: 10px; }
+            .textContent  { white-space: pre; }
+            .lineslider   { margin-left: 5px; }
+        </style>
+
+        <script>
+            // use this as a shortcut for getting DOM objects
+            const g = function (id) { return document.getElementById(id); }
+            s = {};		// use this singleton instead of global variables
+
+            s.drawTriangle = function () 
+            {
+                // if you set the shape properties of the thing you are drawing
+                //     right before you do it it will not bleed over into other things
+                s.canvasStateProperties.forEach(h => {
+                    /** @property triangle */
+                    s.ctx1[h.name] = s.triangle[h.name];
+                });
+
+                // move center of triangle to origin temporarily
+                // find the center
+                const arrayX = [s.triangle.x1, s.triangle.x2, s.triangle.x3];
+                let min = Math.min(...arrayX);
+                const centerX = min + (Math.max(...arrayX) - min) / 2;
+
+                const arrayY = [s.triangle.y1, s.triangle.y2, s.triangle.y3];
+                min = Math.min(...arrayY);
+                const centerY = min + (Math.max(...arrayY) - min) / 2;
+
+                // move it
+                arrayX.forEach((x, i) => { arrayX[i] = x - centerX; });
+                arrayY.forEach((y, i) => { arrayY[i] = y - centerY; });
+
+                // scale it
+                arrayX.forEach((x, i) => { arrayX[i] = x * s.triangle.scaleX; });
+                arrayY.forEach((y, i) => { arrayY[i] = y * s.triangle.scaleY; });
+
+                // move them back
+                arrayX.forEach((x, i) => { arrayX[i] = x + centerX; });
+                arrayY.forEach((y, i) => { arrayY[i] = y + centerY; });
+
+                s.ctx1.beginPath();
+                s.ctx1.moveTo(arrayX[0], arrayY[0]);
+                s.ctx1.lineTo(arrayX[1], arrayY[1]);
+                s.ctx1.lineTo(arrayX[2], arrayY[2]);
+                s.ctx1.closePath();
+                s.ctx1.fillStyle = s.triangle.c;
+                s.ctx1.fill();
+                s.ctx1.stroke();
+            }
+
+            s.drawRectangle = function () 
+            {
+                s.canvasStateProperties.forEach(h => {
+                    /** @property rectangle */
+                    s.ctx1[h.name] = s.rectangle[h.name];
+                });
+
+                // move center of rectangle to origin temporarily
+                // find the center
+                const arrayX = [s.rectangle.x, s.rectangle.w];
+                let min = Math.min(...arrayX);
+                const centerX = min + (Math.max(...arrayX) - min) / 2;
+
+                const arrayY = [s.rectangle.y, s.rectangle.h];
+                min = Math.min(...arrayY);
+                const centerY = min + (Math.max(...arrayY) - min) / 2;
+
+                // move it
+                arrayX.forEach((x, i) => { arrayX[i] = x - centerX; });
+                arrayY.forEach((y, i) => { arrayY[i] = y - centerY; });
+
+                // scale it
+                arrayX.forEach((x, i) => { arrayX[i] = x * s.rectangle.scaleX; });
+                arrayY.forEach((y, i) => { arrayY[i] = y * s.rectangle.scaleY; });
+
+                // move them back
+                arrayX.forEach((x, i) => { arrayX[i] = x + centerX; });
+                arrayY.forEach((y, i) => { arrayY[i] = y + centerY; });
+
+                s.ctx1.beginPath();
+                s.ctx1.rect(arrayX[0], arrayY[0], arrayX[1], arrayY[1]);
+                s.ctx1.fillStyle = s.rectangle.c;
+                s.ctx1.fill();
+                s.ctx1.stroke();
+            }
+
+            s.drawLine = function () 
+            {
+                s.canvasStateProperties.forEach(h => {
+                    /** @property line */
+                    s.ctx1[h.name] = s.line[h.name];
+                });
+
+                // move center of line to origin temporarily
+                // find the center
+                const arrayX = [s.line.x1, s.line.x2, s.line.x3];
+                let min = Math.min(...arrayX);
+                const centerX = min + (Math.max(...arrayX) - min) / 2;
+
+                const arrayY = [s.line.y1, s.line.y2, s.line.y3];
+                min = Math.min(...arrayY);
+                const centerY = min + (Math.max(...arrayY) - min) / 2;
+
+                // move it
+                arrayX.forEach((x, i) => { arrayX[i] = x - centerX; });
+                arrayY.forEach((y, i) => { arrayY[i] = y - centerY; });
+
+                // scale it
+                arrayX.forEach((x, i) => { arrayX[i] = x * s.line.scale; });
+                arrayY.forEach((y, i) => { arrayY[i] = y * s.line.scale; });
+
+                // move them back
+                arrayX.forEach((x, i) => { arrayX[i] = x + centerX; });
+                arrayY.forEach((y, i) => { arrayY[i] = y + centerY; });
+
+                s.ctx1.beginPath();
+                s.ctx1.moveTo(arrayX[0], arrayY[0]);
+                s.ctx1.lineTo(arrayX[1], arrayY[1]);
+                s.ctx1.lineTo(arrayX[2], arrayY[2]);
+                s.ctx1.stroke();
+            }
+
+            s.drawStar = function () 
+            {
+                s.canvasStateProperties.forEach(h => {
+                    /** @property star */
+                    s.ctx1[h.name] = s.star[h.name];
+                });
+
+                // define the star
+                s.ctx1.beginPath();
+                s.ctx1.moveTo(s.star.centerX, s.star.centerY + s.star.outer);
+
+                for (let i = 0; i < 2 * s.star.p + 1; i++) 
+                {
+                    const r = (i % 2 === 0) ? s.star.outer : s.star.inner;
+                    const a = Math.PI * i / s.star.p;
+                    s.ctx1.lineTo(s.star.centerX + r * Math.sin(a), s.star.centerY + r * Math.cos(a));
+                }
+
+                // Get array of coordinates
+                for (let i = 0; i < 2 * s.star.p + 1; i++) 
+                {
+                    const r = (i % 2 === 0) ? s.star.outer : s.star.inner;
+                    const a = Math.PI * i / s.star.p;
+
+                    s.star.coordinates.push({
+                        x: s.star.centerX + r * Math.sin(a),
+                        y: s.star.centerY + r * Math.cos(a)
+                    });
+                }
+
+                s.ctx1.closePath();
+                s.ctx1.fillStyle = s.star.c;
+                s.ctx1.fill();
+                s.ctx1.stroke();
+            }
+
+            s.drawCircle = function () 
+            {
+                s.canvasStateProperties.forEach(h => {
+                    /** @property circle */
+                    s.ctx1[h.name] = s.circle[h.name];
+                });
+
+                s.ctx1.beginPath();
+                s.ctx1.arc(s.circle.x, s.circle.y, s.circle.r, 0, 2 * Math.PI);
+                s.ctx1.fillStyle = s.circle.c;
+                s.ctx1.fill();
+                s.ctx1.stroke()
+            }
+
+            s.drawPentagon = function () 
+            {
+                s.canvasStateProperties.forEach(h => {
+                    /** @property pentagon */
+                    s.ctx1[h.name] = s.pentagon[h.name];
+                });
+
+                const numberOfSides = 5;
+                const radius = s.pentagon.r;
+                const x = s.pentagon.x;
+                const y = s.pentagon.y;
+                const angle = 2 * Math.PI / numberOfSides;
+
+                s.ctx1.beginPath();
+                s.ctx1.moveTo(x + radius * Math.cos(0), y + radius * Math.sin(0));
+
+                for (let i = 1; i <= numberOfSides; i++) {
+                    s.ctx1.lineTo(x + radius * Math.cos(i * angle), y + radius * Math.sin(i * angle));
+                }
+
+                // Get array of coordinates
+                for (let i = 1; i <= numberOfSides; i++) {
+                    s.pentagon.coordinates.push({
+                        x: x + radius * Math.cos(i * angle),
+                        y: y + radius * Math.sin(i * angle)
+                    });
+                }
+
+                s.ctx1.closePath();
+                s.ctx1.fillStyle = s.pentagon.c;
+                s.ctx1.fill();
+                s.ctx1.stroke();
+            }
+
+            s.drawAll = function () 
+            {
+                // clears the background
+                s.ctx1.fillStyle = 'white';
+                s.ctx1.fillRect(0, 0, s.canvas1.width, s.canvas1.height);
+
+                s.drawTriangle();
+                s.drawRectangle();
+                s.drawLine();
+                s.drawStar();
+                s.drawCircle();
+                s.drawPentagon();
+            }
+
+            function get_angle_diff(line1, line2)   
+            {
+                // Function to return the angle (in radians) between two lines
+                var line1_x1 = line1[0];
+                var line1_y1 = line1[1];
+                var line1_x2 = line1[2];
+                var line1_y2 = line1[3];
+
+                var line2_x1 = line2[0];
+                var line2_y1 = line2[1];
+                var line2_x2 = line2[2];
+                var line2_y2 = line2[3];
+
+                var angle1 = Math.atan2(line1_y1 - line1_y2, line1_x1 - line1_x2);
+                var angle2 = Math.atan2(line2_y1 - line2_y2, line2_x1 - line2_x2);
+
+                return angle1 - angle2;
+            }
+
+            onload = function ()
+            {
+                s.shape = ['triangle', 'rectangle', 'line', 'star', 'circle', 'pentagon'];
+
+                s.canvasStateProperties = [
+                    { name: 'lineWidth', default: 1 },
+                    { name: 'fillStyle', default: 'white' }
+                ];
+
+                s.shapeProperties = [
+                    { triangle:  { x1: 30,  y1: 120, x2: 150, y2: 120, x3: 90, y3: 15, l: 120, scaleX: 1, scaleY: 1, sfactor: 1.005, c: "red" } },
+                    { rectangle: { x: 210, y: 40, h: 80, w: 140, scaleX: 1, scaleY: 1, sfactor: 1.005, c: "blue" } },
+                    { line:      { x1: 400, y1: 80, x2: 485, y2: 80, x3: 570, y3: 80, l: 170, scale: 1, sfactor: 1.005} },
+                    { star:      { centerX: 90,  centerY: 380, p: 5, coordinates: [], inner: 60, outer: 25, scaleX: 1, scaleY: 1, sfactor: 1.005, c: "green" } },
+                    { circle:    { x: 280, y: 380, r: 55, scaleX: 1, scaleY: 1, sfactor: 1.005,  c: "orange" } },
+                    { pentagon:  { x: 480, y: 380, r: 70, coordinates: [], scaleX: 1, scaleY: 1, sfactor: 1.005,  c: "purple" } }
+                ];
+
+                // declaring new properties of s and assigning them default values
+                s.canvasStateProperties.forEach(p => {
+                s.shape.forEach(h => {
+                    if (!s[h]) s[h] = {};
+                    s[h][p.name] = p.default;
+                    });
+                });
+
+                // declaring new canvas state properties of s and assigning them
+                //  default values
+                s.shapeProperties.forEach(shape => {
+                    for (shapeName in shape) 
+                    {
+                        for (property in shape[shapeName]) 
+                        {
+                                s[shapeName][property] = shape[shapeName][property];
+                        }
+                    }
+                });
+
+                s.lineSlider = g("lineSlider");
+                s.shapesSelect = g('shapesSelect');
+                s.scaleSlider = g('scaleSlider');
+
+                s.lineSlider.oninput = function () 
+                {
+                    s[shapesSelect.value].lineWidth = this.value;
+                    s.drawAll();
+                }
+
+                // setup the options in shapesSelect
+                s.shapesSelect.onchange = function () 
+                {
+                    s.lineSlider.value = s[this.value].lineWidth;
+                }
+
+                s.scaleSlider.oninput = function () 
+                {
+                    s[shapesSelect.value].sfactor = this.value;
+                    s.drawAll();
+                }
+
+                // setup the options in shapesSelect
+                s.shapesSelect.onchange = function () 
+                {
+                    s.scaleSlider.value = s[this.value].sfactor;
+                }
+
+                let content = '';
+                s.shape.forEach(h => { content += `<option>${h}</option>`; });
+                shapesSelect.innerHTML = content;
+
+                document.body.addEventListener('mousedown', e => { s.mouse_down(e) });
+                document.body.addEventListener('mouseup', e => { s.mouse_up(e) });
+                document.body.addEventListener('mousemove', e => { s.mouse_move(e) });
+
+                // Get the base layer canvas object
+                s.canvas1 = g("layer1");
+                s.ctx1 = s.canvas1.getContext("2d");
+                s.ctx1.fillStyle = "#0000FF";
+                
+                s.BB = s.canvas1.getBoundingClientRect();
+                s.offsetX = s.BB.left;
+                s.offsetY = s.BB.top;
+                s.WIDTH = s.canvas1.width;
+                s.HEIGHT = s.canvas1.height;
+                s.halfwidth = s.canvas1.width/2;
+                s.halfheight = s.canvas1.height/2;
+
+                s.transformations = g('transformations');
+
+                // Get the top layer canvas object
+                s.canvas2 = g("layer2");
+                s.ctx2 = s.canvas2.getContext("2d");
+                s.is_down = false; // mouse hasn't been pressed
+
+                s.dX = 0;
+                s.dY = 0;
+                s.theta = 0;
+
+                s.drawAll();
+            }
+
+            // callback for mouse down events
+            s.mouse_down = function (e) 
+            {
+                s.xDown = parseInt(e.clientX - s.offsetX);
+                s.yDown = parseInt(e.clientY - s.offsetY);
+                s.is_down = true;
+                s.coords = "X: " + s.xDown + " Y: " + s.yDown;
+                g("val1").textContent = s.coords;
+            }
+
+            s.mouse_move = function (e)
+            {
+                s.x = parseInt(e.clientX - s.offsetX);
+                s.y = parseInt(e.clientY - s.offsetY);
+
+                const shape = s.shapesSelect.value;
+                const transform = s.transformations.value;
+
+                if(s.is_down)
+                {
+                    switch(shape)
+                    {
+                        case 'triangle':
+                            switch(transform)
+                            {
+                                case 'Translate':
+                                    if(s.is_down && s.x < s.WIDTH && s.y < s.HEIGHT && (s.x + s[shape].l) < s.WIDTH)
+                                    {
+                                        // Put mouse cursor in center of shape
+                                        s[shape].x1 = s.x;
+                                        s[shape].y1 = s.y;
+
+                                        s[shape].x2 = s.x + s[shape].l;
+                                        s[shape].y2 = s.y;
+
+                                        s[shape].x3 = s.x + s[shape].l/2;
+                                        s[shape].y3 = s.y - ((Math.sqrt(3)/2)*s[shape].l);
+                                    }
+                                break;
+
+                                case 'Rotate':
+                                    // NEED TO DO
+                                break;
+
+                                case 'Scale (True)':
+                                    if(s.is_down && s.x < s.WIDTH && s.y < s.HEIGHT)
+                                    {
+                                        s[shape].scaleX = Math.pow(s[shape].sfactor, s.x - s.xDown);
+                                        s[shape].scaleY = Math.pow(s[shape].sfactor, s.y - s.yDown);
+                                    }
+                                break;
+
+                                case 'Scale (Fixed)':
+                                    if(s.is_down && s.x < s.WIDTH && s.y < s.HEIGHT)
+                                    {
+                                        s[shape].scaleX = Math.pow(s[shape].sfactor, s.x - s.xDown);
+                                        s[shape].scaleY = Math.pow(s[shape].sfactor, s.x - s.yDown);
+                                    }
+                                break;
+
+                                default:
+                                    alert("UNEXPECTED TRANSFORMATION!!!")
+                                break;
+                            }
+                        break;
+
+                        case 'rectangle':
+                            switch(transform)
+                            {
+                                case 'Translate':
+                                    // Fix Translate - after scale
+                                    // Moves and scales
+                                    if(s.is_down && s.x < s.WIDTH && s.y < s.HEIGHT)
+                                    {
+                                        s[shape].x = s.x;
+                                        s[shape].y = s.y;
+                                    }
+                                break;
+
+                                case 'Rotate':
+                                    // NEED TO DO *********************************
+
+                                    // move center of rectangle to origin temporarily
+                                    // find the center
+                                    const arrayX = [s[shape].x, s[shape].w];
+                                    let min = Math.min(...arrayX);
+                                    const centerX = min + (Math.max(...arrayX) - min) / 2;
+
+                                    const arrayY = [s[shape].y, s[shape].h];
+                                    min = Math.min(...arrayY);
+                                    const centerY = min + (Math.max(...arrayY) - min) / 2;
+                                break;
+
+                                case 'Scale (True)':
+                                    if(s.is_down && s.x < s.WIDTH && s.y < s.HEIGHT)
+                                    {
+                                        s[shape].scaleX = Math.pow(s[shape].sfactor, s.x - s.xDown);
+                                        s[shape].scaleY = Math.pow(s[shape].sfactor, s.y - s.yDown);
+                                    }
+                                break;
+
+                                case 'Scale (Fixed)':
+                                    if(s.is_down && s.x < s.WIDTH && s.y < s.HEIGHT)
+                                    {
+                                        s[shape].scaleX = Math.pow(s[shape].sfactor, s.x - s.xDown);
+                                    }  
+                                break;
+
+                                default:
+                                    alert("UNEXPECTED TRANSFORMATION!!!")
+                                break;
+                            }
+                        break;
+
+                        case 'line':
+                            switch(transform)
+                            {
+                                case 'Translate':
+                                    if(s.is_down && s.x < s.WIDTH && s.y < s.HEIGHT && (s.x + s.line.l/2) < s.WIDTH)
+                                    {
+                                        s[shape].x1 = s.x - (s[shape].l/2);
+                                        s[shape].y1 = s.y;
+
+                                        s[shape].x2 = s.x;
+                                        s[shape].y2 = s.y;
+
+                                        s[shape].x3 = s.x + (s[shape].l/2);
+                                        s[shape].y3 = s.y;
+                                    }
+                                break;
+
+                                case 'Rotate':
+                                    if(s.is_down && s.x < s.WIDTH && s.y < s.HEIGHT)
+                                    {
+                                        s.dx = s.x - s[shape].x2;
+                                        s.dy = s.y - s[shape].y2;
+                                        s.angle = Math.atan2(s.dy, s.dx);
+
+                                        s[shape].x3 = s[shape].x2 + (s[shape].l/2) * Math.cos(s.angle);
+                                        s[shape].y3 = s[shape].y2 + (s[shape].l/2) * Math.sin(s.angle);
+                                        
+                                        s[shape].x1 = s[shape].x2 - (s[shape].l/2) * Math.cos(s.angle);
+                                        s[shape].y1 = s[shape].y2 - (s[shape].l/2) * Math.sin(s.angle);
+                                    }
+                                break;
+
+                                case 'Scale (True)':
+                                    // NOOP
+                                    alert("No true scaling for line");
+                                break;
+
+                                case 'Scale (Fixed)':
+                                    // if(s.is_down && s.x < s.WIDTH && s.y < s.HEIGHT)
+                                    // {
+                                    //     s[shape].x2 = (s[shape].x1 + s[shape].x3)/2;
+                                    //     s[shape].x3 = s.x;
+                                    //     // s[shape].l += s.xUp - s.xDown;
+                                    // }
+
+                                    if(s.is_down && s.x < s.WIDTH && s.y < s.HEIGHT)
+                                    {
+                                        s[shape].scale = Math.pow(s[shape].sfactor, s.x - s.xDown);
+                                    }
+                                break;
+
+                                default:
+                                    alert("UNEXPECTED TRANSFORMATION!!!")
+                                break;
+                            }
+                        break;
+
+                        case 'star':
+                            switch (transform)
+                            {
+                                case 'Translate':
+                                    if(s.is_down && s.x < s.WIDTH && s.y < s.HEIGHT && (s.x + s[shape].outer) < s.WIDTH && (s.y + s[shape].outer) < s.WIDTH)
+                                    {
+                                        s[shape].centerX = s.x;
+                                        s[shape].centerY = s.y;
+                                    }
+                                break;
+
+                                case 'Rotate':
+                                    // NEED TO DO *********************************
+                                break;
+
+                                case 'Scale (True)':
+                                    // NEED TO DO *********************************
+                                break;
+
+                                case 'Scale (Fixed)':
+                                    // NEED TO DO *********************************
+                                    s[shape].outer = Math.pow(s[shape].sfactor, s.x - s.xDown);
+                                    s[shape].inner = Math.pow(s[shape].sfactor, s.y - s.yDown);
+                                break;
+
+                                default:
+                                    alert("UNEXPECTED TRANSFORMATION!!!")
+                                break;
+                            }
+                        break;
+
+                        case 'circle':
+                            switch (transform)
+                            {
+                                case 'Translate':
+                                    if(s.is_down && (s.x + s[shape].r) < s.WIDTH && (s.y + s[shape].r) < s.HEIGHT)
+                                    {
+                                        s[shape].x = s.x;
+                                        s[shape].y = s.y;
+                                    }
+                                break;
+
+                                case 'Scale (True)':
+                                    // NOOP
+                                break;
+
+                                case 'Scale (Fixed)':
+                                    // NEED TO DO *********************************
+                                    // s[shape].r = s.x*0.5;
+                                    s[shape].r = Math.pow(s[shape].sfactor, s.x - s.xDown);
+                                break;
+
+                                default:
+                                    alert("UNEXPECTED TRANSFORMATION!!!")
+                                break;
+                            }
+                        break;
+                            
+                        case 'pentagon':
+                            switch (transform)
+                            {
+                                case 'Translate':
+                                    if(s.is_down && (s.x + s[shape].r) < s.WIDTH && (s.y + s[shape].r) < s.HEIGHT)
+                                    {
+                                        s[shape].x = s.x;
+                                        s[shape].y = s.y;
+                                    }
+                                break;
+
+                                case 'Rotate':
+                                    // NEED TO DO *********************************
+                                break;
+
+                                case 'Scale (True)':
+                                    // NEED TO DO *********************************
+                                break;
+
+                                case 'Scale (Fixed)':
+                                    // NEED TO DO *********************************
+                                    s[shape].r = Math.pow(s[shape].sfactor, s.x - s.xDown);
+                                break;
+
+                                default:
+                                    alert("UNEXPECTED TRANSFORMATION!!!")
+                                break;
+                            }
+                        break;
+                        
+                        default:
+                            alert("UNEXPECTED SHAPE!!!");
+                        break;
+
+                    }
+                    s.drawAll();
+                }
+
+                s.coords = "X: " + s.x + " Y: " + s.y;
+                g("val2").textContent = s.coords;
+
+                g("val3").setAttribute('style', 'white-space: pre;');
+                s.coords = "X: " + s.xUp + " Y: " + s.yUp + "\r\n" +  "dX: " + s.dX + "\r\n" + "dY: " + s.dY + "\r\n" + "Angle: " + s.theta;
+                g("val3").textContent = s.coords;
+
+                if(s[shape].r)
+                {
+                    s.coords = " (" + Math.floor(s[shape].r*100)/100 + ", " + Math.floor(s[shape].r*100)/100 + ")";                    s.coords = " (" + Math.floor(s[shape].scaleX*100)/100 + ", " + Math.floor(s[shape].scaleY*100)/100 + ")";
+                    // s.coords = " (" + Math.floor(s[shape].scaleX*100)/100 + ", " + Math.floor(s[shape].scaleY*100)/100 + ")";
+                }
+                else
+                {
+                    s.coords = " (" + Math.floor(s[shape].scaleX*100)/100 + ", " + Math.floor(s[shape].scaleY*100)/100 + ")";
+                }
+                g("val4").textContent = s.coords;
+            }
+
+            // callback for mouse up events
+            s.mouse_up = function (e) 
+            {
+                s.xUp = parseInt(e.clientX - s.offsetX);
+                s.yUp = parseInt(e.clientY - s.offsetY);
+                s.is_down = false;
+                s.ctx2.clearRect(0, 0, s.canvas2.width, s.canvas2.height);
+
+                s.dX = s.xUp - s.xDown;
+                s.dY = s.yUp - s.yDown;
+                s.theta = -(s.angle);
+            }
+        </script>
+    </head>
+
+    <body>
+        <table>
+            <tr>
+                <td style="width:600px; height:550px">
+                    <canvas id="layer1" style="z-index:1; position:absolute; left:17px; top:17px" width="607" height="557">
+                        Your browser doesn't support the canvas tag!
+                    </canvas>
+    
+                    <canvas id="layer2" style="z-index:1; position:absolute; left:17px; top:17px" width="607" height="507">
+                        Your browser doesn't support the canvas tag!
+                    </canvas>
+                 </td>
+            </tr>
+    
+            <tr>
+                <td>
+                    <b>Mouse</b>&nbsp;&nbsp;<b>=></b>&nbsp;
+                    <b>[Down]</b> <span id="val1"></span>&nbsp;&nbsp;&nbsp;<b>|</b>&nbsp;&nbsp;&nbsp;
+                    <b>[Move]</b> <span id="val2"></span>&nbsp;&nbsp;&nbsp;<b>|</b>&nbsp;&nbsp;&nbsp;
+                    <b>[Up]</b> <span id="val3"></span>
+                </td>
+            </tr>
+    
+            <tr>
+                <td>Absolute Scale of Shape (X, Y): <span id="val4"></span></td>    
+            </tr>
+    
+            <tr>
+                <td>
+                    <div class="dropdown">
+                        <label>Shape select:
+                            <select id="shapesSelect">
+                                <option>Triangle</option>
+                                <option>Rectangle</option>
+                                <option>Line</option>
+                                <option>Star</option>
+                                <option>Circle</option>
+                                <option>Pentagon</option>
+                            </select>
+                        </label>
+    
+                        <label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Transformation:
+                            <select id="transformations">
+                                <option value="Translate">Translate</option>
+                                <option value="Rotate">Rotate</option>
+                                <option value="Scale (True)">Scale (True)</option>
+                                <option value="Scale (Fixed)">Scale (Fixed)</option>
+                            </select>
+                        </label>
+                    </div>
+    
+                    <!-- <button class="draw">Toggle Draw Mode</button> -->
+    
+                    <label for="lineSlider" class="lineslider">Line Width:</label>
+                        1<input type="range" id="lineSlider" name="line_width" min="1" max="20" value="1" step="1"
+                            onchange="this.setAttribute('value', this.value);">20
+    
+                    <label class="scaleSlider">&nbsp;&nbsp;&nbsp;Scaling Factor:</label>
+                        1.001<input type="range" id="scaleSlider" name="scaler" min="1.001" max="1.010" value="1.005" step="0.001"
+                            onchange="this.setAttribute('value', this.value);">1.010
+                </td>
+            </tr>
+    
+            <tr><td>Transformation Controls: Click + Drag within the canvas to move the shape</td></tr>
+            <tr><td>Circle Doesn't have a rotation or true scaling</td></tr>
+            <tr><td>Line only has fixed scaling</td></tr>
+        </table>
+    </body>
+</html>
