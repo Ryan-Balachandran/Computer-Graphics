@@ -1,0 +1,6 @@
+[
+     {"lineWidth":"5","strokeStyle":"rgba(0, 0, 0, 1)","strokeAlpha":"100","lineCap":"butt","show":true,"isSelected":false,"id":"line1","type":"Line","x1":110,"y1":71,"x2":267,"y2":582,"showHitbox":false},
+     {"lineWidth":"26","strokeStyle":"rgba(0, 86, 214, 1)","strokeAlpha":"100","lineCap":"butt","show":true,"isSelected":false,"id":"line2","type":"Line","x1":218,"y1":142,"x2":982,"y2":352,"showHitbox":false},
+     {"lineWidth":"26","strokeStyle":"rgba(0, 86, 214, 1)","strokeAlpha":"100","lineCap":"butt","show":true,"isSelected":false,"id":"line3","type":"Line","x1":409,"y1":328,"x2":600,"y2":669,"showHitbox":false},
+     {"lineWidth":"26","strokeStyle":"rgba(0, 86, 214, 0.52)","strokeAlpha":"52","lineCap":"butt","show":true,"isSelected":false,"id":"line4","type":"Line","x1":491,"y1":113,"x2":970,"y2":689,"showHitbox":false}
+]
