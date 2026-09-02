@@ -1,6 +1,7 @@
 const http = require('http');
 const {readFileSync} = require('fs');
 const url = require('url');
+const path = require('path');
 
 http.createServer((request, response) => {
     const header   = {'Cache-Control': 'no-cache, no-store, must-revalidate'};
@@ -22,7 +23,15 @@ http.createServer((request, response) => {
             case 'ico':
                 header['Content-Type'] = 'image/vnd.microsoft.icon';
                 response.writeHead(200, header);
-                response.end(readFileSync(`.${pathname}`), 'binary');
+                const base = path.resolve('.');
+                const target = path.resolve(base, pathname);
+                const relative = path.relative(base, target);
+                if (relative.startsWith('..') || path.isAbsolute(relative)) {
+                    response.writeHead(400, header);
+                    response.end();
+                    break;
+                }
+                response.end(readFileSync(target), 'binary');
                 break;
             case 'js':
                 header['Content-Type'] = 'text/javascript';
