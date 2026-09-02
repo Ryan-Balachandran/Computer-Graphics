@@ -20,7 +20,15 @@ http.createServer((request, response) => {
             case 'ico':
                 header['Content-Type'] = 'image/vnd.microsoft.icon';
                 response.writeHead(200, header);
-                response.end(readFileSync(`.${pathname}`), 'binary');
+                const baseIco = path.resolve('.');
+                const targetIco = path.resolve(baseIco, pathname);
+                const relativeIco = path.relative(baseIco, targetIco);
+                if (relativeIco.startsWith('..') || path.isAbsolute(relativeIco)) {
+                    response.writeHead(400, header);
+                    response.end('Bad Request');
+                    break;
+                }
+                response.end(readFileSync(targetIco), 'binary');
                 break;
             case 'js':
                 header['Content-Type'] = 'text/javascript';
@@ -38,7 +46,15 @@ http.createServer((request, response) => {
             case 'glsl':
                 header['Content-Type'] = 'text/plain';
                 response.writeHead(200, header);
-                response.end(readFileSync(`./shaders/${pathname}`), 'utf8');
+                const baseGlsl = path.resolve('./shaders');
+                const targetGlsl = path.resolve(baseGlsl, pathname);
+                const relativeGlsl = path.relative(baseGlsl, targetGlsl);
+                if (relativeGlsl.startsWith('..') || path.isAbsolute(relativeGlsl)) {
+                    response.writeHead(400, header);
+                    response.end('Bad Request');
+                    break;
+                }
+                response.end(readFileSync(targetGlsl), 'utf8');
                 break;
             default:
                 // get requests with name value pairs
