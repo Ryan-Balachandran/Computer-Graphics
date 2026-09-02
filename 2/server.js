@@ -36,12 +36,28 @@ http.createServer((request, response) => {
             case 'js':
                 header['Content-Type'] = 'text/javascript';
                 response.writeHead(200, header);
-                response.end(readFileSync(`.${pathname}`), 'utf8');
+                const baseJs = path.resolve('.');
+                const targetJs = path.resolve(baseJs, pathname);
+                const relativeJs = path.relative(baseJs, targetJs);
+                if (relativeJs.startsWith('..') || path.isAbsolute(relativeJs)) {
+                    response.writeHead(400, header);
+                    response.end();
+                    break;
+                }
+                response.end(readFileSync(targetJs), 'utf8');
                 break;
             case 'glsl':
                 header['Content-Type'] = 'text/plain';
                 response.writeHead(200, header);
-                response.end(readFileSync(`./shaders/${pathname}`), 'utf8');
+                const baseGlsl = path.resolve('./shaders');
+                const targetGlsl = path.resolve(baseGlsl, pathname);
+                const relativeGlsl = path.relative(baseGlsl, targetGlsl);
+                if (relativeGlsl.startsWith('..') || path.isAbsolute(relativeGlsl)) {
+                    response.writeHead(400, header);
+                    response.end();
+                    break;
+                }
+                response.end(readFileSync(targetGlsl), 'utf8');
                 break;
             default:
                 // get requests with name value pairs
